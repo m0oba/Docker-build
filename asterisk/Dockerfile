@@ -1,97 +1,71 @@
-FROM  resin/raspberrypi3-debian
-MAINTAINER Geofrey Ernest <gernest@farmradio.org>
+FROM arm32v6/alpine:3.9
+MAINTAINER Ivan Poddubny <ivan.poddubny@gmail.com>
+WORKDIR /root/
 
-ENV ASTERISKUSER asterisk
+COPY src ./src
 
-RUN groupadd -r $ASTERISKUSER && useradd -r -g $ASTERISKUSER $ASTERISKUSER \
-  && usermod -aG sudo $ASTERISKUSER
+ENV ASTERISK_VERSION 15.3.0
 
-# grab gosu for easy step-down from root
-  RUN apt-get update && apt-get install -y \
-	  git \
-	  uuid-dev \
-	  build-essential \
-	  libxml2-dev \
-	  libncurses5-dev \
-	  libsqlite3-dev \
-	  libssl-dev \
-	  libasound-dev\
-	  alsa-base\
-	  alsa-utils\
-	  jackd\
-	  libjack0\
-	  libjansson-dev\
-	  php5 \
-	  php5-json \
-	  php5-curl\
-	  sox \
-	  mpg123 \
-	  libwww-perl\
-	  wget\
-	  unzip\
-	  automake\
-	  autoconf\
-	  vorbis-tools\
-	  libvorbis-dev\
-	  libsrtp0-dev\
-	  linsrtp0\
-	  libspeex-dev\
-	  libspeex1\
-	  && rm -rf /var/lib/apt/lists/*
-
-
-# install port audio
-
-#WORKDIR /tmp
-#RUN git clone  https://git.assembla.com/portaudio.git
-#WORKDIR /tmp/portaudio
-#RUN ./configure
-#RUN make
-#RUN make install
-#RUN ldconfig
-
-
-## pj project
-#WORKDIR /tmp
-#RUN git clone -b pjproject-2.4.5 --depth 1 https://github.com/asterisk/pjproject.git
-#WORKDIR /tmp/pjproject
-#RUN ./configure
-#RUN make dep
-#RUN make
-#RUN make install
-#RUN ldconfig
-
-
-# asterisk
-WORKDIR /tmp
-RUN git clone -b 13.9 --depth 1 https://gerrit.asterisk.org/asterisk
-WORKDIR /tmp/asterisk
-RUN  ./configure --with-pjproject-bundled
-RUN  cd menuselect && make menuselect && cd .. & make menuselect-tree
-RUN  menuselect/menuselect --disable BUILD_NATIVE \
-  --enable streamplayer \
-  --enable format_mp3\
-  menuselect/menuselect.makeopts
-
-RUN  make && make install && make config && make samples
-
-
-# Additional files
-WORKDIR /tmp
-RUN  wget http://sourceforge.net/projects/phpagi/files/latest/download \
-	&& tar xvzf download \
-	&& mv phpagi-2.20/* /var/lib/asterisk/agi-bin/  \
- 	&& chmod ugo+x /var/lib/asterisk/agi-bin/*.php\
-	&& rm -f download
-
-
-# chan_dongle
-WORKDIR /tmp
-RUN git clone -b asterisk13 https://github.com/oleg-krv/asterisk-chan-dongle.git
-WORKDIR /tmp/asterisk-chan-dongle
-RUN aclocal&&autoconf&&automake -a ||true
-RUN ./configure
-RUN make install
-
-WORKDIR /
-CMD ["asterisk","-vvvvvvvvf"]
+RUN apk update \
+  && apk add libtool libuuid jansson libxml2 sqlite-libs readline libcurl libressl zlib libsrtp lua5.1-libs spandsp unbound-libs \
+  && apk add --virtual .build-deps gnupg build-base patch bsd-compat-headers util-linux-dev ncurses-dev libresample \
+        jansson-dev libxml2-dev sqlite-dev readline-dev curl-dev libressl-dev unbound-dev \
+        zlib-dev libsrtp-dev lua-dev spandsp-dev \
+  && export GNUPGHOME="$(mktemp -d)" \
+  && for key in \
+    551F29104B2106080C6C2851073B0C1FC9B2E352 \
+    21A91EB1F012252993E9BF4A368AB332B59975F3 \
+    80CEBC345EC9FF529B4B7B808438CBA18D0CAA72 \
+    639D932D5170532F8C200CCD9C59F000777DCC45 \
+    57E769BC37906C091E7F641F6CB44E557BD982D8 \
+    CDBEE4CC699E200EB4D46BB79E76E3A42341CE04 \
+  ; do \
+    gpg --keyserver pgp.mit.edu --recv-keys "$key" || \
+    gpg --keyserver keyserver.pgp.com --recv-keys "$key" || \
+    gpg --keyserver ha.pool.sks-keyservers.net --recv-keys "$key" ; \
+  done \
+  && wget http://downloads.asterisk.org/pub/telephony/asterisk/releases/asterisk-${ASTERISK_VERSION}.tar.gz \
+  && wget http://downloads.asterisk.org/pub/telephony/asterisk/releases/asterisk-${ASTERISK_VERSION}.tar.gz.asc \
+  && gpg --batch --verify asterisk-${ASTERISK_VERSION}.tar.gz.asc asterisk-${ASTERISK_VERSION}.tar.gz \
+  && rm -rf "$GNUPGHOME" asterisk-${ASTERISK_VERSION}.tar.gz.asc \
+  && tar xzf asterisk-${ASTERISK_VERSION}.tar.gz \
+  && cd asterisk-${ASTERISK_VERSION} \
+  && sed -i -e 's/ASTSSL_LIBS:=$(OPENSSL_LIB)/ASTSSL_LIBS:=-Wl,--no-as-needed $(OPENSSL_LIB) -Wl,--as-needed/g' main/Makefile \
+  && patch -p1 < ../src/musl-mutex-init.patch \
+  && cp ../src/9000-libressl.patch third-party/pjproject/patches/ \
+  && ./configure --with-pjproject-bundled \
+  && make menuselect.makeopts \
+  && ./menuselect/menuselect \
+    --disable BUILD_NATIVE \
+    --disable-category MENUSELECT_CORE_SOUNDS \
+    --disable-category MENUSELECT_MOH \
+    --disable-category MENUSELECT_EXTRA_SOUNDS \
+    --disable app_externalivr \
+    --disable app_adsiprog \
+    --disable app_alarmreceiver \
+    --disable app_getcpeid \
+    --disable app_minivm \
+    --disable app_morsecode \
+    --disable app_mp3 \
+    --disable app_nbscat \
+    --disable app_zapateller \
+    --disable chan_mgcp \
+    --disable chan_skinny \
+    --disable chan_unistim \
+    --disable codec_lpc10 \
+    --disable pbx_dundi \
+    --disable res_adsi \
+    --disable res_smdi \
+    menuselect.makeopts \
+  && make -j$(getconf _NPROCESSORS_ONLN) ASTCFLAGS="-Os -fomit-frame-pointer" ASTLDFLAGS="-Wl,--as-needed" \
+  && scanelf --recursive --nobanner --osabi --etype "ET_DYN,ET_EXEC" . \
+    | while read type osabi filename ; do \
+      [ "$osabi" != "STANDALONE" ] || continue ; \
+      strip "${filename}" ; \
+    done \
+  && make install \
+  && cd .. \
+  && apk del .build-deps \
+  && rm -rf ./asterisk* \
+  && rm -rf src \
+  && rm -rf /var/cache/apk/*
