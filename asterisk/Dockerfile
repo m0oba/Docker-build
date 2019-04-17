@@ -10,31 +10,16 @@ RUN apk update \
   && apk add libtool libuuid jansson libgcc libxml2 sqlite-libs readline libcurl libressl zlib libsrtp lua5.1-libs spandsp unbound-libs \
   && apk add --virtual .build-deps gnupg build-base patch bsd-compat-headers util-linux-dev ncurses-dev libresample \
         jansson-dev libxml2-dev sqlite-dev readline-dev curl-dev libressl-dev unbound-dev \
-        zlib-dev libsrtp-dev lua-dev spandsp-dev \
-  && export GNUPGHOME="$(mktemp -d)" \
-  && for key in \
-    551F29104B2106080C6C2851073B0C1FC9B2E352 \
-    21A91EB1F012252993E9BF4A368AB332B59975F3 \
-    80CEBC345EC9FF529B4B7B808438CBA18D0CAA72 \
-    639D932D5170532F8C200CCD9C59F000777DCC45 \
-    57E769BC37906C091E7F641F6CB44E557BD982D8 \
-    CDBEE4CC699E200EB4D46BB79E76E3A42341CE04 \
-  ; do \
-    gpg --keyserver pgp.mit.edu --recv-keys "$key" || \
-    gpg --keyserver keyserver.pgp.com --recv-keys "$key" || \
-    gpg --keyserver ha.pool.sks-keyservers.net --recv-keys "$key" ; \
-  done \
-  && wget http://downloads.asterisk.org/pub/telephony/asterisk/releases/asterisk-${ASTERISK_VERSION}.tar.gz \
-  && wget http://downloads.asterisk.org/pub/telephony/asterisk/releases/asterisk-${ASTERISK_VERSION}.tar.gz.asc \
-  && gpg --batch --verify asterisk-${ASTERISK_VERSION}.tar.gz.asc asterisk-${ASTERISK_VERSION}.tar.gz \
-  && rm -rf "$GNUPGHOME" asterisk-${ASTERISK_VERSION}.tar.gz.asc \
-  && tar xzf asterisk-${ASTERISK_VERSION}.tar.gz \
-  && cd asterisk-${ASTERISK_VERSION} \
-  && sed -i -e 's/ASTSSL_LIBS:=$(OPENSSL_LIB)/ASTSSL_LIBS:=-Wl,--no-as-needed $(OPENSSL_LIB) -Wl,--as-needed/g' main/Makefile \
-  && patch -p1 < ../src/musl-mutex-init.patch \
-  && cp ../src/9000-libressl.patch third-party/pjproject/patches/ \
-  && ./configure --with-pjproject-bundled \
-  && make menuselect.makeopts \
+        zlib-dev libsrtp-dev lua-dev spandsp-dev
+RUN export GNUPGHOME="$(mktemp -d)"
+RUN wget http://downloads.asterisk.org/pub/telephony/asterisk/releases/asterisk-${ASTERISK_VERSION}.tar.gz 
+RUN wget http://downloads.asterisk.org/pub/telephony/asterisk/releases/asterisk-${ASTERISK_VERSION}.tar.gz.asc 
+RUN gpg --batch --verify asterisk-${ASTERISK_VERSION}.tar.gz.asc asterisk-${ASTERISK_VERSION}.tar.gz
+RUN rm -rf "$GNUPGHOME" asterisk-${ASTERISK_VERSION}.tar.gz.asc
+RUN tar xzf asterisk-${ASTERISK_VERSION}.tar.gz
+RUN cd asterisk-${ASTERISK_VERSION}
+RUN ./configure --with-pjproject-bundled
+RUN make menuselect.makeopts \
   && ./menuselect/menuselect \
     --disable BUILD_NATIVE \
     --disable-category MENUSELECT_CORE_SOUNDS \
@@ -62,10 +47,11 @@ RUN apk update \
     | while read type osabi filename ; do \
       [ "$osabi" != "STANDALONE" ] || continue ; \
       strip "${filename}" ; \
-    done \
-  && make install \
-  && cd .. \
-  && apk del .build-deps \
-  && rm -rf ./asterisk* \
-  && rm -rf src \
-  && rm -rf /var/cache/apk/*
+    done
+RUN make install
+RUN make samples
+RUN cd .. 
+RUN apk del .build-deps 
+RUN rm -rf ./asterisk* 
+RUN rm -rf src 
+RUN rm -rf /var/cache/apk/*
