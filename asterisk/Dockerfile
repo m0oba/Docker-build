@@ -11,11 +11,7 @@ RUN apk update \
   && apk add --virtual .build-deps gnupg build-base patch bsd-compat-headers util-linux-dev ncurses-dev libresample \
         jansson-dev libxml2-dev sqlite-dev readline-dev curl-dev libressl-dev unbound-dev \
         zlib-dev libsrtp-dev lua-dev spandsp-dev
-RUN export GNUPGHOME="$(mktemp -d)"
 RUN wget http://downloads.asterisk.org/pub/telephony/asterisk/releases/asterisk-${ASTERISK_VERSION}.tar.gz 
-RUN wget http://downloads.asterisk.org/pub/telephony/asterisk/releases/asterisk-${ASTERISK_VERSION}.tar.gz.asc 
-RUN gpg --batch --verify asterisk-${ASTERISK_VERSION}.tar.gz.asc asterisk-${ASTERISK_VERSION}.tar.gz
-RUN rm -rf "$GNUPGHOME" asterisk-${ASTERISK_VERSION}.tar.gz.asc
 RUN tar xzf asterisk-${ASTERISK_VERSION}.tar.gz
 RUN cd asterisk-${ASTERISK_VERSION}
 RUN ./configure --with-pjproject-bundled
