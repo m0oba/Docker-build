@@ -9,7 +9,7 @@ ENV \
 
 # copy files needed
 COPY  file /file 
-RUN cp /file/asoundrc.config /root/.asoundrc
+COPY asoundrc.config /root/.asoundrc
 RUN chmod +x /file/installCred.sh
 RUN chmod +x /file/GA.sh
 
