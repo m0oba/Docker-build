@@ -1,6 +1,5 @@
 # Only works with ARM7 devices such as a Raspberry Pi
-FROM balenalib/armv7hf-debian
-
+FROM balenalib/raspberrypi3-debian
 
 # Set locales
 ENV \
