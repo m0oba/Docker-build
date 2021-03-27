@@ -6,7 +6,7 @@
  [ ! -z "$secret" ] && echo $secret > /root/client_secret.json
 
  echo ' '
- install credentials
+ #install credentials
 
 /env/bin/google-oauthlib-tool \
 	--client-secrets /root/client_secret.json \
