@@ -1,4 +1,5 @@
-FROM balenalib/raspeberrypi3-debian
+# Only works with ARM7 devices such as a Raspberry Pi
+FROM balenalib/armv7hf-debian
 
 
 # Set locales
@@ -37,3 +38,4 @@ RUN pip3 install --upgrade google-auth-oauthlib[tool]
 
 # Run google-assistant
 CMD /file/GA.sh 
+
