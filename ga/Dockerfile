@@ -10,8 +10,8 @@ ENV \
 # copy files needed
 COPY  file /file 
 COPY asoundrc.config /root/.asoundrc
-#RUN chmod +x /file/installCred.sh
-#RUN chmod +x /file/GA.sh
+RUN ["chmod", "+x /file/installCred.sh"]
+RUN ["chmod", "+x /file/GA.sh"]
 
 # Install packages
 RUN apt-get update \
